@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Room</title>
+    <!-- Latest minified Bootstrap & JQuery-->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>
+    <!-- Custom styles for this template -->
+</head>
+
+<body class="text-center">
+
+<div>
+    <div>
+        <button id="video_off">Video On</button>
+        <button id="video_on">Video Off</button>
+        <button id="audio_off">Audio On</button>
+        <button id="audio_on">Audio Off</button>
+
+        <div>
+            <div>
+                <video id="local_video" autoplay playsinline></video>
+            </div>
+            <div>
+                <video id="remote_video" autoplay playsinline></video>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+
+<script>
+    let roomId = localStorage.getItem('roomId');
+
+    const socket = new WebSocket("wss://" + window.location.host + "/signal/" + roomId); // handler맵핑 url
+    const localVideo = document.getElementById('local_video'); // id=local_video 변수
+    const remoteVideo = document.getElementById('remote_video'); // id=remote_video 변수
+
+    // UI elements
+    const videoButtonOff = document.querySelector('#video_off');
+    const videoButtonOn = document.querySelector('#video_on');
+    const audioButtonOff = document.querySelector('#audio_off');
+    const audioButtonOn = document.querySelector('#audio_on');
+    const exitButton = document.querySelector('#exit');
+
+    // WebRTC STUN servers
+    const peerConnectionConfig = {
+        'iceServers': [
+            {'urls': 'stun:stun.stunprotocol.org:3478'},
+            {'urls': 'stun:stun.l.google.com:19302'}, // P2P 연결의 중계서버는 구글에서 무료로 지원하는 Google STUN 서버
+        ]
+    };
+
+    // WebRTC media
+    const mediaConstraints = {
+        audio: true,
+        video: true
+    };
+
+    // WebRTC variables
+    let localStream;
+    let localVideoTracks;
+    let myPeerConnection;
+
+    $(function(){
+        start(); // window load시 바로 시작
+    });
+
+    function start() {
+        socket.onmessage = function(msg) {
+            let message = JSON.parse(msg.data);
+            switch (message.type) {
+                case "text":
+                    break;
+                case "join":
+                    handlePeerConnection(message);
+                    break;
+                default:
+                    console.log("start error");
+            }
+        };
+
+        socket.onopen = function() {
+            sendToServer({
+                roomNumber: roomId, // uuid를 의미
+                type: 'join',
+            });
+        };
+
+        // a listener for the socket being closed event
+        socket.onclose = function(message) {
+        };
+
+        // an event listener to handle socket errors
+        socket.onerror = function(message) {
+        };
+    }
+
+    function sendToServer(msg) {
+        let msgJSON = JSON.stringify(msg);
+        socket.send(msgJSON);
+    }
+
+    function handlePeerConnection(message) {
+        createPeerConnection(); // peer 생성?
+        getMedia(mediaConstraints); // mediaConstraints == autio true video true 변수
+    }
+
+    function createPeerConnection() {
+        myPeerConnection = new RTCPeerConnection(peerConnectionConfig); // peerConnectionConfig == 구글 peer 서버
+    }
+
+    function getMedia(constraints) { // constraints == autio true video true 변수
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                track.stop();
+            });
+        } // navigator.mediaDevices.getUserMedia로 미디어 정보 불러오기??
+        if (navigator.mediaDevices === undefined) {
+            navigator.mediaDevices = {};
+        }
+
+        if (navigator.mediaDevices.getUserMedia === undefined) {
+            navigator.mediaDevices.getUserMedia = function(constraints) {
+
+                // First get ahold of the legacy getUserMedia, if present
+                var getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+                // Some browsers just don't implement it - return a rejected promise with an error
+                // to keep a consistent interface
+                if (!getUserMedia) {
+                    return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
+                }
+
+                // Otherwise, wrap the call to the old navigator.getUserMedia with a Promise
+                return new Promise(function(resolve, reject) {
+                    getUserMedia.call(navigator, constraints, resolve, reject);
+                });
+            }
+        }
+
+        var getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+        if (!getUserMedia) {
+            return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
+        } else {
+            new Promise(function(resolve, reject) {
+                getUserMedia.call(navigator, constraints, resolve, reject);
+            });
+        }
+
+        navigator.mediaDevices.getUserMedia(constraints) // constratints video audio true 변수 값
+            .then(getLocalMediaStream).catch(handleGetUserMediaError);
+    }
+
+    /**
+     * 카메라/마이크 등 데이터 스트림 접근
+     * @param mediaStream
+     */
+    // add MediaStream to local video element and to the Peer
+    function getLocalMediaStream(mediaStream) {
+        localStream = mediaStream;
+        localVideo.srcObject = mediaStream;
+        localStream.getTracks().forEach(track => myPeerConnection.addTrack(track, localStream));
+    }
+
+    function handleGetUserMediaError(error) {
+        switch(error.name) {
+            case "NotFoundError":
+                alert("Unable to open your call because no camera and/or microphone were found.");
+                break;
+            case "SecurityError":
+            case "PermissionDeniedError":
+                // Do nothing; this is the same as the user canceling the call.
+                break;
+            default:
+                alert("Error opening your camera and/or microphone: " + error.message);
+                break;
+        }
+    }
+
+    // mute video buttons handler
+    videoButtonOff.onclick = () => {
+        localVideoTracks = localStream.getVideoTracks();
+        localVideoTracks.forEach(track => localStream.removeTrack(track)); // 비디오 트랙 localStream 제거
+
+        $(videoButtonOff).css('display', 'none');
+        $(videoButtonOn).css('display', 'inline');
+
+        $(localVideo).css('display', 'none'); // id=local_video display none;
+
+    };
+
+
+    videoButtonOn.onclick = () => {
+        localVideoTracks.forEach(track => localStream.addTrack(track)); // 비디오 트랙 localStream 추가
+
+        $(videoButtonOff).css('display', 'inline');
+        $(videoButtonOn).css('display', 'none');
+
+        $(localVideo).css('display', 'inline'); // id=local_video display none;
+    };
+
+    // mute audio buttons handler
+    audioButtonOff.onclick = () => {
+        $(audioButtonOff).css('display', 'none');
+        $(audioButtonOn).css('display', 'inline');
+
+        localVideo.muted = true; // id=local_video mute 활성화;
+    };
+
+    audioButtonOn.onclick = () => {
+        $(audioButtonOff).css('display', 'inline');
+        $(audioButtonOn).css('display', 'none');
+
+        localVideo.muted = false; // id=local_video mute 제거;
+    };
+
+    // function video_off_function() {
+    //     alert("video_off_function 여기 오긴함???111111111111");
+    //     localVideoTracks = localStream.getVideoTracks();
+    //     localVideoTracks.forEach(track => localStream.removeTrack(track)); // 비디오 트랙 localStream 제거
+    //
+    //     $(videoButtonOff).css('display', 'none');
+    //     $(videoButtonOn).css('display', 'inline');
+    //
+    //     $(localVideo).css('display', 'none'); // id=local_video display none;
+    // };
+
+    // function video_on_function() {
+    //     alert("video on 여기 오긴함22222222");
+    //     localVideoTracks.forEach(track => localStream.addTrack(track)); // 비디오 트랙 localStream 추가
+    //
+    //     $(videoButtonOff).css('display', 'inline');
+    //     $(videoButtonOn).css('display', 'none');
+    //
+    //     $(localVideo).css('display', 'inline'); // id=local_video display none;
+    // };
+
+    // function audio_off_function() {
+    //     $(audioButtonOff).css('display', 'none');
+    //     $(audioButtonOn).css('display', 'inline');
+    //
+    //     localVideo.muted = true; // id=local_video mute 활성화;
+    // };
+
+    // function audio_on_function() {
+    //     $(audioButtonOff).css('display', 'inline');
+    //     $(audioButtonOn).css('display', 'none');
+    //
+    //     localVideo.muted = false; // id=local_video mute 제거;
+    // };
+
+
+    // // room exit button handler
+    // exitButton.onclick = () => {
+    //     stop();
+    // };
+
+</script>
+
+</html>

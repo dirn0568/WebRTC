@@ -1,0 +1,35 @@
+##H2DB
+##spring.jpa.hibernate.ddl-auto=create
+##spring.jpa.show-sql=true
+##spring.jpa.properties.hibernate.format_sql=true
+##logging.level.org.hibernate.type.descriptor.sql=trace
+#
+##Thymeleaf develop
+#
+#spring:
+#  redis:
+#    # host: redis://:p3ddca98b8f2ac4ddff623cfeed13b6dcab3a874b4f6bd3bb5ebdb7e9f3248dd4@ec2-34-193-69-177.compute-1.amazonaws.com:9429
+#    # host: redis://:p3ddca98b8f2ac4ddff623cfeed13b6dcab3a874b4f6bd3bb5ebdb7e9f3248dd4@ec2-52-4-85-97.compute-1.amazonaws.com:11069
+#    host: redis://:p6184dcdd16621a3ca478955eeb435aee171e62ac76c89f8d43808d73bd05a282@ec2-52-20-170-81.compute-1.amazonaws.com:20419
+#  thymeleaf:
+#    cache:
+#      false
+#
+#  application:
+#    name: monitoring
+#
+#management:
+#  endpoint:
+#    metrics:
+#      enabled: true
+#    prometheus:
+#      enabled: true
+#
+#  endpoints:
+#    web:
+#      exposure:
+#        include: health, info, metrics, prometheus
+#
+#  metrics:
+#    tags:
+#      application: monitoring

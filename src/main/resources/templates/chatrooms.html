@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Websocket Chat</title>
+  <meta charset="utf-8">
+</head>
+<body>
+<div>
+  <div>
+    <div>
+      <h3>채팅방 리스트</h3>
+    </div>
+  </div>
+  <div>
+    <div>
+      <label>방제목</label>
+    </div>
+    <input type="text" id="roomTitle">
+  </div>
+  <ul id="roomList">
+    <li class="list-group-item list-group-item-action" onclick="enterRoom(1)">
+      1, abc
+    </li>
+    <li class="list-group-item list-group-item-action" onclick="enterRoom(2)">
+      2, abc
+    </li>
+    <li class="list-group-item list-group-item-action" onclick="enterRoom(3)">
+      3, abc
+    </li>
+  </ul>
+</div>
+<!-- JavaScript -->
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+<script>
+  function makeHtml(roomId, roomTitle) {
+    return `<li class="list-group-item list-group-item-action" onclick="enterRoom( '${roomId}')">
+                ${roomId}, ${roomTitle}
+            </li>`
+  }
+
+  function enterRoom(roomId) {
+    localStorage.setItem('roomId', roomId);
+    location.href = "/chat/room/" + roomId;
+  }
+
+  function createRoom() {
+    let roomTitle = $('#roomTitle').val();
+    $.ajax({
+      type: "POST",
+      url: "/chatroom",
+      data: {
+        roomTitle : roomTitle
+      },
+      success: function (response) {
+        console.log(response);
+        let roomId = response.roomId;
+        let roomTitle = response.roomTitle;
+        let roomOwner = response.roomOwner;
+        let roomUUID = response.roomUUID;
+        let tempHtml = makeHtml(roomId, roomTitle, roomOwner, roomUUID);
+        $('#roomList').append(tempHtml);
+        //window.location.reload();
+      }
+    });
+  }
+</script>
+</body>
+</html>
